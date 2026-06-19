@@ -1,0 +1,7 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "go": true,
+        "mkdir": true,
+        "./bin/gopher-email": true
+    }
+}

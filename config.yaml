@@ -1,0 +1,6 @@
+storage_root: ./storage
+db_path: ./email_archive.db
+credentials_file: ./credentials.json
+token_file: ./token.json
+inbound_label: gSave
+archive_label: gArchive
