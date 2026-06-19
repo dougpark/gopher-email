@@ -22,8 +22,8 @@ func Load(path string) (*Config, error) {
 	v.SetConfigFile(path)
 
 	// Sensible defaults so the tool works with a minimal config file.
-	v.SetDefault("storage_root", "./storage")
-	v.SetDefault("db_path", "./email_archive.db")
+	v.SetDefault("storage_root", "./data/storage/email")
+	v.SetDefault("db_path", "./data/db.sqlite")
 	v.SetDefault("credentials_file", "./credentials.json")
 	v.SetDefault("token_file", "./token.json")
 	v.SetDefault("inbound_label", "gSave")

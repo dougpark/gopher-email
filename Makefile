@@ -29,4 +29,4 @@ run: build
 
 # Re-index storage directory into DB.
 sync: build
-	$(BINARY) sync --config ./config.yaml --path ./storage --verbose
+	$(BINARY) sync --config ./config.yaml --path ./data/storage/email --verbose

@@ -5,6 +5,7 @@ token.json
 # Local database and storage
 *.db
 storage/
+data/
 
 # Build output
 bin/
