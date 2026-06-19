@@ -45,9 +45,14 @@ func Open(path string) (*DB, error) {
 		return nil, fmt.Errorf("opening sqlite db %q: %w", path, err)
 	}
 
-	if _, err := conn.Exec("PRAGMA journal_mode=WAL;"); err != nil {
+	if _, err := conn.Exec("PRAGMA journal_mode = WAL;"); err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("setting WAL mode: %w", err)
+	}
+
+	if _, err := conn.Exec("PRAGMA busy_timeout = 5000;"); err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("setting busy timeout: %w", err)
 	}
 
 	if _, err := conn.Exec(schema); err != nil {
