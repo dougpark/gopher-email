@@ -26,6 +26,13 @@ type Pipeline struct {
 	verbose      bool
 }
 
+// ProcessResult reports the high-level outcome for one message.
+type ProcessResult struct {
+	Processed          bool
+	SkippedExists      bool
+	LabelSwapFailed    bool
+}
+
 // New creates a Pipeline with all required dependencies.
 func New(database *db.DB, gmailClient *gmail.Client, storageRoot, inboundLabel, archiveLabel string, verbose bool) *Pipeline {
 	return &Pipeline{
@@ -41,22 +48,22 @@ func New(database *db.DB, gmailClient *gmail.Client, storageRoot, inboundLabel, 
 // Process runs the full atomic ingestion for a single Gmail message ID.
 // If any step fails before the label swap, the message stays in the inbound
 // label so the next run will retry it.
-func (p *Pipeline) Process(ctx context.Context, msgID string) error {
+func (p *Pipeline) Process(ctx context.Context, msgID string) (ProcessResult, error) {
 	// Step 1 — Idempotency check.
 	exists, err := p.db.Exists(msgID)
 	if err != nil {
-		return fmt.Errorf("db.Exists: %w", err)
+		return ProcessResult{}, fmt.Errorf("db.Exists: %w", err)
 	}
 	if exists {
 		p.logf("skipping %s (already processed)", msgID)
-		return nil
+		return ProcessResult{SkippedExists: true}, nil
 	}
 
 	// Step 2 — Fetch raw RFC 2822 bytes from Gmail.
 	p.logf("fetching %s", msgID)
 	rawEML, err := p.gmail.GetRaw(ctx, msgID)
 	if err != nil {
-		return fmt.Errorf("GetRaw: %w", err)
+		return ProcessResult{}, fmt.Errorf("GetRaw: %w", err)
 	}
 
 	// Step 3 — Parse headers with go-message/mail.
@@ -74,7 +81,7 @@ func (p *Pipeline) Process(ctx context.Context, msgID string) error {
 	// Step 4 — Write .eml to filesystem.
 	result, err := storage.Write(p.storageRoot, rawEML, date)
 	if err != nil {
-		return fmt.Errorf("storage.Write: %w", err)
+		return ProcessResult{}, fmt.Errorf("storage.Write: %w", err)
 	}
 	p.logf("wrote %s → %s", msgID, result.Path)
 
@@ -106,24 +113,24 @@ func (p *Pipeline) Process(ctx context.Context, msgID string) error {
 	if err := p.db.Insert(item); err != nil {
 		// Attempt to clean up the written file to avoid orphans.
 		_ = removeFile(result.Path)
-		return fmt.Errorf("db.Insert: %w", err)
+		return ProcessResult{}, fmt.Errorf("db.Insert: %w", err)
 	}
 
 	// Step 7 — Verify file still on disk, then swap labels.
 	if !storage.Exists(result.Path) {
 		_ = p.db.Delete(msgID) // best-effort rollback
-		return fmt.Errorf("file missing after write: %s", result.Path)
+		return ProcessResult{}, fmt.Errorf("file missing after write: %s", result.Path)
 	}
 
 	if err := p.gmail.BatchModify(ctx, []string{msgID}, []string{p.inboundLabel}, []string{p.archiveLabel}); err != nil {
 		// SQLite row and file are present; label swap failed. Log and leave in
 		// inbound label — the next run's idempotency check prevents duplication.
 		log.Printf("warning: label swap failed for %s (will retry next run): %v", msgID, err)
-		return nil
+		return ProcessResult{Processed: true, LabelSwapFailed: true}, nil
 	}
 
 	p.logf("processed %s OK", msgID)
-	return nil
+	return ProcessResult{Processed: true}, nil
 }
 
 // parsedHeaders holds the fields we care about from the email headers.
