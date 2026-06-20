@@ -1,3 +1,7 @@
+# Gopher Email
+A CLI tool that uses the Gmail API to back up emails as `.eml` files, organized by date, with metadata stored in a SQLite database. Designed for reliability and idempotency, it runs in a docker container that is scheduled by Ofelia to run every 15 minutes, to incrementally download new emails from the gsave label.
+
+Runs independently from lumin_gopher, but is designed to be used in conjunction. The lumin_gopher pipeline will periodically check the gopher-email database for new entries, and if found, will copy the corresponding .eml files into the lumin_gopher pipeline for processing.
 
 
 ## Implementation Complete

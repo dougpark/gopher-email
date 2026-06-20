@@ -10,6 +10,7 @@ services:
     labels:
       ofelia.enabled: "true"
       ofelia.job-exec.gopher-email.schedule: "@every 15m"
+      # ofelia will execute the command in the container, so we need to specify the path to the gopher-email binary inside the container
       ofelia.job-exec.gopher-email.command: "/usr/local/bin/gopher-email run --config /app/config.yaml --verbose"
     volumes:
       - ./config.yaml:/app/config.yaml:ro
