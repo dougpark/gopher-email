@@ -4,13 +4,28 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: gopher-email
-    command: ["run", "--config", "/app/config.yaml", "--verbose"]
+   # Use sh -c to create an infinite loop that doesn't rely on external binaries
+    command: ["sh", "-c", "while true; do sleep 3600; done"]
     restart: unless-stopped
+    labels:
+      ofelia.enabled: "true"
+      ofelia.job-exec.gopher-email.schedule: "@every 15m"
+      ofelia.job-exec.gopher-email.command: "/usr/local/bin/gopher-email run --config /app/config.yaml --verbose"
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - ./credentials.json:/app/credentials.json:ro
       - ./token.json:/app/token.json
       - gopher-email-data:/app/data
+
+  ofelia:
+    image: mcuadros/ofelia:latest
+    container_name: ofelia
+    depends_on:
+      - gopher-email
+    command: daemon --docker
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
 
 volumes:
   gopher-email-data:
