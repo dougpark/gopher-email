@@ -5,14 +5,15 @@ services:
       dockerfile: Dockerfile
     container_name: gopher-email
     user: "1000:1000" # Uses your host User ID and Group ID
-   # Use sh -c to create an infinite loop that doesn't rely on external binaries
+    # Use sh -c to create an infinite loop that doesn't rely on external binaries
     command: ["sh", "-c", "while true; do sleep 3600; done"]
     restart: unless-stopped
     labels:
       ofelia.enabled: "true"
       ofelia.job-exec.gopher-email.schedule: "@every 15m"
       # ofelia will execute the command in the container, so we need to specify the path to the gopher-email binary inside the container
-      ofelia.job-exec.gopher-email.command: "/usr/local/bin/gopher-email run --config /app/config.yaml --verbose"
+      ofelia.job-exec.gopher-email.command: "su-exec 1000:1000 /usr/local/bin/gopher-email run --config /app/config.yaml --verbose"
+      # "/usr/local/bin/gopher-email run --config /app/config.yaml --verbose"
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - ./credentials.json:/app/credentials.json:ro
@@ -22,7 +23,6 @@ services:
   ofelia:
     image: mcuadros/ofelia:latest
     container_name: ofelia
-    user: "1000:1000" # Uses your host User ID and Group ID
     depends_on:
       - gopher-email
     command: daemon --docker
